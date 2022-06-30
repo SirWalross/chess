@@ -1,12 +1,26 @@
 use std::fmt;
 
-use crate::piece::Position;
+use crate::position::Position;
+
+#[allow(non_snake_case)]
+pub(crate) mod MoveFlags {
+    pub(crate) const KINGSIDE_CASTLING: u8 = 1 << 0;
+    pub(crate) const QUEENSIDE_CASTLING: u8 = 1 << 1;
+    pub(crate) const QUEEN_PROMOTION: u8 = 1 << 2;
+    pub(crate) const ROOK_PROMOTION: u8 = 2 << 2;
+    pub(crate) const KNIGHT_PROMOTION: u8 = 3 << 2;
+    pub(crate) const BISHOP_PROMOTION: u8 = 4 << 2;
+    pub(crate) const TWO_SQUARE_ADVANCE: u8 = 1 << 5;
+    pub(crate) const EN_PASSANT: u8 = 1 << 6;
+}
 
 #[derive(Clone, Debug)]
 pub struct Move {
     pub start: u8,
     pub end: u8,
-    pub(crate) flags: u8, // bit 0 & 1 castling, bit 2, 3 & 4 promotion, bit 5 two square advance, bit 6 en passant, bit 7 non attack move, bit 8 pinned move
+    pub(crate) flags: u8, 
+    // bit 0 castling kingside, bit 1 castling queenside, bit 2, 3 & 4 promotion
+    // bit 5 two square advance, bit 6 en passant
 }
 
 impl Move {

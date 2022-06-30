@@ -1,4 +1,4 @@
-use crate::{piece::Position, Board, Move};
+use crate::{Board, Move, position::Position};
 use rand::seq::SliceRandom;
 use std::io::Write;
 
@@ -64,7 +64,7 @@ impl PlayerType {
                 }
 
                 let mut _move = Move::from_positions(start, end, 0, promotion, false, false);
-                let move_index = board.allowed_moves.iter().position(|(m, _)| {
+                let move_index = board.move_generator.moves.iter().position(|m| {
                     m.start == start.index() as u8
                         && m.end == end.index() as u8
                         && m.promotion() == _move.promotion()
@@ -74,17 +74,18 @@ impl PlayerType {
                     continue;
                 }
 
-                _move.flags = board.allowed_moves[move_index.unwrap()].0.flags;
+                _move = board.move_generator.moves[move_index.unwrap()].clone();
                 return _move;
             },
             Self::Bot => {
                 let _move = board
-                    .allowed_moves
+                    .move_generator
+                    .moves
                     .choose(&mut rand::thread_rng())
                     .unwrap()
                     .clone();
-                println!("Player {:?} made the move {}", board.turn, _move.0);
-                _move.0
+                println!("Player {:?} made the move {}", board.data.white_turn, _move);
+                _move
             }
         }
     }
