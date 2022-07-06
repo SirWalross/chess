@@ -74,6 +74,11 @@ impl Position {
         self.rank = self.rank.signum();
         self
     }
+
+    #[inline(always)]
+    pub(crate) fn same_direction(&self, direction: Position) -> bool {
+        self.file.signum() == direction.file.signum() && self.rank.signum() == direction.file.signum()
+    }
 }
 
 impl std::ops::Add<u8> for Position {

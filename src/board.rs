@@ -1,6 +1,6 @@
 use termion::color;
 
-use crate::_move::Move;
+use crate::_move::{Move, MoveFlags};
 use crate::change::Change;
 use crate::move_generator::MoveGenerator;
 use crate::piece::{Piece, PieceColor, PieceType};
@@ -8,6 +8,7 @@ use crate::piece_list::PieceList;
 use crate::piece_moves::PieceMoves;
 use crate::player::PlayerType;
 use crate::position::Position;
+use crate::state::State;
 use array_init::array_init;
 use core::num;
 use std::fmt;
@@ -17,13 +18,14 @@ pub(crate) struct Data {
     pub(crate) piece_moves: PieceMoves,
     pub(crate) white_turn: bool,
     pub(crate) piece_list: PieceList,
-    pub(crate) not_able_to_castle: u8, // for white, black, for queenside and kingside respectively
+    pub(crate) not_able_to_castle: u8, // bit 0 white queenside, bit 1 white kingside, bit 2 black queenside, bit 3 black kingside
     pub(crate) two_square_advance: u8, // intermittend position of the pawn while advancing two squares starting at 1
 }
 
 pub struct Board {
     pub(crate) move_generator: MoveGenerator,
     pub(crate) data: Data,
+    pub state: State,
     players: [PlayerType; 2],
     ply: usize,
     fifty_move_counter: u8,
@@ -41,46 +43,78 @@ impl Board {
                 not_able_to_castle: 0x0f,
                 two_square_advance: 0,
             },
+            state: State::Playing,
             move_generator: MoveGenerator::new(),
             players: [player1, player2],
             ply: 0,
             fifty_move_counter: 0,
             changes: Vec::new(),
         };
-        board.populate();
-        board.data.piece_list.populate(&board.data.board);
+        board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         board
     }
 
-    fn populate(&mut self) -> () {
-        for board_spot in 0..64 {
-            let uuid = board_spot as u8;
-            match board_spot {
-                0 | 7 => self.data.board[board_spot].set(PieceType::Rook, PieceColor::White, uuid),
-                56 | 63 => {
-                    self.data.board[board_spot].set(PieceType::Rook, PieceColor::Black, 63 - uuid)
-                }
-                1 | 6 => self.data.board[board_spot].set(PieceType::Knight, PieceColor::White, uuid),
-                57 | 62 => {
-                    self.data.board[board_spot].set(PieceType::Knight, PieceColor::Black, 63 - uuid)
-                }
-                2 | 5 => self.data.board[board_spot].set(PieceType::Bishop, PieceColor::White, uuid),
-                58 | 61 => {
-                    self.data.board[board_spot].set(PieceType::Bishop, PieceColor::Black, 63 - uuid)
-                }
-                3 => self.data.board[board_spot].set(PieceType::Queen, PieceColor::White, uuid),
-                59 => self.data.board[board_spot].set(PieceType::Queen, PieceColor::Black, 63 - uuid),
-                4 => self.data.board[board_spot].set(PieceType::King, PieceColor::White, uuid),
-                60 => self.data.board[board_spot].set(PieceType::King, PieceColor::Black, 63 - uuid),
-                8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 => {
-                    self.data.board[board_spot].set(PieceType::Pawn, PieceColor::White, uuid)
-                }
-                48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 => {
-                    self.data.board[board_spot].set(PieceType::Pawn, PieceColor::Black, 63 - uuid)
-                }
-                _ => (),
-            };
+    pub fn load_fen(&mut self, fen: &str) {
+        self.state = State::Playing;
+        self.data.not_able_to_castle = 0x0f;
+
+        for piece in &mut self.data.board {
+            piece.set_empty()
         }
+
+        let sections: Vec<&str> = fen.split(' ').collect();
+        let mut file = 7;
+        let mut rank = 0;
+        let mut white_uuid = 0;
+        let mut black_uuid = 0;
+
+        for c in sections[0].chars() {
+            if c == '/' {
+                rank = 0;
+                file -= 1;
+            } else if c.is_ascii_digit() {
+                rank += c.to_digit(10).unwrap() as usize;
+            } else {
+                let _type = PieceType::from_char(c.to_ascii_lowercase());
+                if c.is_ascii_uppercase() {
+                    self.data.board[rank + 8 * file].set(_type, PieceColor::White, white_uuid);
+                    white_uuid += 1;
+                } else {
+                    self.data.board[rank + 8 * file].set(_type, PieceColor::Black, black_uuid);
+                    black_uuid += 1;
+                }
+                rank += 1;
+            }
+        }
+
+        self.data.white_turn = sections[1].chars().next().unwrap() == 'w';
+
+        let castling_rights = if sections.len() > 2 {
+            sections[2]
+        } else {
+            "KQkq"
+        };
+
+        self.data.not_able_to_castle ^= if castling_rights.contains('Q') {1 << 0} else {0};
+        self.data.not_able_to_castle ^= if castling_rights.contains('K') {1 << 1} else {0};
+        self.data.not_able_to_castle ^= if castling_rights.contains('q') {1 << 2} else {0};
+        self.data.not_able_to_castle ^= if castling_rights.contains('k') {1 << 3} else {0};
+
+        if sections.len() > 3 {
+            if sections[3].len() > 1 {
+                // contains position
+                let rank = (sections[3].chars().next().unwrap().to_ascii_lowercase() as u32 - 'a' as u32) as u8;
+                let file = sections[3].chars().next().unwrap().to_digit(10).unwrap() as u8 - 1;;
+                self.data.two_square_advance = rank + file * 8;
+            }
+        }
+
+        
+        if sections.len() > 4 {
+            self.fifty_move_counter = sections[4].parse::<u8>().unwrap_or(0);
+        }
+
+        self.data.piece_list.populate(&self.data.board);
     }
 
     fn make_move(&mut self, _move: &Move) {
@@ -97,21 +131,22 @@ impl Board {
         }
 
         let captured_position = if _move.en_passant() {
-            self.data.two_square_advance - 1
+            (self.data.two_square_advance as i8 - 8 * piece.color()) as u8
         } else {
             _move.end
         };
 
-        let captured = self.data.board[captured_position as usize].clone();
+        let mut captured = self.data.board[captured_position as usize].clone();
 
         if _move.en_passant() {
             // en passant
             debug_assert!(self.data.board[_move.end as usize].is_empty());
             debug_assert!(piece.is_pawn());
             debug_assert!(self.data.two_square_advance != 0);
-            let captured_pawn = &mut self.data.board[self.data.two_square_advance as usize - 1];
-            self.data.piece_list.remove(captured_pawn);
-            captured_pawn.set_empty();
+            self.data.piece_list.remove(&captured);
+            self.data.board[captured_position as usize].set_empty();
+        } else if !captured.is_empty() {
+            self.data.piece_list.remove(&captured);
         }
 
         if _move.promotion() != 0 {
@@ -120,20 +155,17 @@ impl Board {
             self.data.piece_list.add(&piece, _move.end);
         }
 
-        if !captured.is_empty() {
-            self.data.piece_list.remove(&captured);
-        }
-
         let two_square_advance = self.data.two_square_advance;
         let not_able_to_castle = self.data.not_able_to_castle;
 
         if _move.castling() != 0 {
             let old_rook_pos =
-                if _move.castling() == 1 { 0 } else { 7 } + ((_move.start as usize) / 8) * 8;
+                if _move.castling() == MoveFlags::QUEENSIDE_CASTLING { 0 } else { 7 } + ((_move.start as usize) / 8) * 8;
             let new_rook_pos =
-                if _move.castling() == 1 { 3 } else { 5 } + ((_move.start as usize) / 8) * 8;
+                if _move.castling() == MoveFlags::QUEENSIDE_CASTLING { 3 } else { 5 } + ((_move.start as usize) / 8) * 8;
 
             let rook = self.data.board[old_rook_pos].clone();
+            debug_assert!(!rook.is_empty());
 
             self.data.board[old_rook_pos] = Piece::empty();
 
@@ -144,7 +176,7 @@ impl Board {
         }
 
         if _move.two_square_advance() {
-            self.data.two_square_advance = (_move.end + _move.start) / 2 + 1;
+            self.data.two_square_advance = (_move.end + _move.start) / 2;
         } else {
             self.data.two_square_advance = 0;
         }
@@ -173,30 +205,60 @@ impl Board {
             two_square_advance,
             fifty_move_counter,
             _move.promotion() != 0,
+            _move.en_passant(),
             not_able_to_castle,
             _move.castling(),
         ));
 
         self.data.piece_list._move(&piece, _move.end);
         self.data.board[_move.end as usize] = piece;
+
+        // self.data.white_turn = !self.data.white_turn;
+        // self.move_generator.generate_moves(&self.data);
+        // self.data.white_turn = !self.data.white_turn;
+        // if self.move_generator.in_check {
+        //     // println!("In check!");
+        //     self.changes.iter().for_each(|c| print!("{}: {}, ", c.start, c.end));
+        //     println!("");
+        // }
     }
 
     fn undo_move(&mut self) {
         let change = self.changes.pop().expect("No move to undo");
+
+        let mut piece = self.data.board[change.end as usize].clone();
+
+        self.fifty_move_counter = change.fifty_move_counter;
         self.data.not_able_to_castle = change.not_able_to_castle;
         self.data.two_square_advance = change.two_square_advance;
-        self.fifty_move_counter = change.fifty_move_counter;
-        self.data.board[change.start as usize] = self.data.board[change.end as usize].clone();
 
-        self.data.board[change.captured_position as usize] = change.captured;
+        if !change.captured.is_empty() {
+            self.data
+                .piece_list
+                .add(&change.captured, change.captured_position);
+            self.data.board[change.captured_position as usize] = change.captured;
+        } else {
+            self.data.board[change.captured_position as usize].set_empty();
+        }
+
+        if change.en_passant {
+            self.data.board[change.end as usize].set_empty();
+        }
+
+        if change.promotion {
+            self.data.piece_list.remove(&piece);
+            piece.promotion(1);
+            self.data.piece_list.add(&piece, change.start);
+        }
 
         if change.castling != 0 {
-            let old_rook_pos =
-                if change.castling == 1 { 3 } else { 5 } + ((change.start as usize) / 8) * 8;
             let new_rook_pos =
-                if change.castling == 1 { 0 } else { 7 } + ((change.start as usize) / 8) * 8;
+                if change.castling == MoveFlags::QUEENSIDE_CASTLING { 0 } else { 7 } + ((change.end as usize) / 8) * 8;
+            let old_rook_pos =
+                if change.castling == MoveFlags::QUEENSIDE_CASTLING { 3 } else { 5 } + ((change.end as usize) / 8) * 8;
 
             let rook = self.data.board[old_rook_pos].clone();
+            debug_assert!(!rook.is_empty());
 
             self.data.board[old_rook_pos] = Piece::empty();
 
@@ -206,9 +268,8 @@ impl Board {
             self.data.board[new_rook_pos] = rook;
         }
 
-        if change.promotion {
-            self.data.board[change.start as usize].promotion(1);
-        }
+        self.data.piece_list._move(&piece, change.start);
+        self.data.board[change.start as usize] = piece;
     }
 
     #[inline(always)]
@@ -216,7 +277,21 @@ impl Board {
         Position::from_index(index).file == 1 - 5 * (color - 1) / 2
     }
 
-    pub fn benchmark(mut self, depth: u8) -> (Self, u32, u128) {
+    pub fn reset(&mut self) {
+        self.ply = 0;
+        self.data.white_turn = true;
+        self.data.not_able_to_castle = 0;
+        self.data.two_square_advance = 0;
+        self.fifty_move_counter = 0;
+        self.data.piece_list = PieceList::new();
+        self.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    }
+
+    pub fn generate_moves(&mut self) {
+        self.move_generator.generate_moves(&self.data);
+    }
+
+    pub fn benchmark(mut self, depth: u8, start: u8) -> (Self, usize, u128) {
         let now = std::time::Instant::now();
 
         if depth == 0 {
@@ -224,34 +299,110 @@ impl Board {
         }
 
         self.move_generator.generate_moves(&self.data);
+        self.check_game_state();
 
+        if self.state != State::Playing {
+            return (self, 0, 0);
+        }
+
+        // let board = self.data.board.clone();
+        // let white_turn = self.data.white_turn;
+        // let not_able_to_castle = self.data.not_able_to_castle;
+        // let two_square_advance = self.data.two_square_advance;
+        // let piece_list = self.data.piece_list.clone();
+        // if depth == 1 {
+        //     let len = self.move_generator.moves.len();
+        //     return (self, len, 0);
+        // }
+        
+        // if start == 3 && depth == 1 {
+        //     println!("{:?}", self.move_generator.moves);
+        //     print!("");
+        // }
         let mut num_positions = 0;
 
-        for _move in self.move_generator.moves.clone() {
+        for (i, _move) in self.move_generator.moves.clone().iter().enumerate() {
+            // println!("Move: {} at depth: {}", _move, depth);
             self.make_move(&_move);
+
+            // println!("{:?}", _move);
+            // println!("{:?}", self.data.piece_list);
+
 
             self.ply += 1;
             self.data.white_turn = !self.data.white_turn;
 
             let _num_positions;
-            (self, _num_positions, _) = self.benchmark(depth - 1);
+            (self, _num_positions, _) = self.benchmark(depth - 1, start);
             num_positions += _num_positions;
+
+            self.state = State::Playing;
 
             self.undo_move();
 
             self.ply -= 1;
             self.data.white_turn = !self.data.white_turn;
+
+            // debug_assert!(self.data.board == board);
+            // debug_assert!(self.data.white_turn == white_turn);
+            // debug_assert!(self.data.not_able_to_castle == not_able_to_castle);
+            // debug_assert!(self.data.two_square_advance == two_square_advance);
         }
 
         (self, num_positions, now.elapsed().as_micros())
     }
 
+    pub fn check_game_state(&mut self) {
+        // depends on previous call to MoveGenerator::generate_moves
+
+        // checkmate or stalemate
+        if self.move_generator.moves.len() == 0 {
+            if self.move_generator.in_check {
+                self.state = if self.data.white_turn {
+                    State::WhiteIsMated
+                } else {
+                    State::BlackIsMated
+                };
+                return;
+            } else {
+                self.state = State::Stalemate;
+                return;
+            }
+        }
+
+        // fifty move rule
+        if self.fifty_move_counter >= 100 {
+            self.state = State::FiftyMoveRule;
+        }
+
+        // TODO: check for threefold repition
+
+        // insufficient material
+        if self.data.piece_list.pawn_count()
+            + self.data.piece_list.rook_count()
+            + self.data.piece_list.queen_count()
+            == 0
+        {
+            if self.data.piece_list.knight_count() + self.data.piece_list.bishop_count() <= 1 {
+                // only king v king, king v king + bishop or king v king + knight
+                self.state = State::InsufficientMaterial;
+                return;
+            }
+        }
+    }
+
     pub fn play_round(&mut self) -> bool {
+        if self.state != State::Playing {
+            return true;
+        }
+
         let now = std::time::Instant::now();
 
         self.move_generator.generate_moves(&self.data);
 
-        if self.move_generator.moves.len() == 0 || self.fifty_move_counter == 50 {
+        self.check_game_state();
+
+        if self.state != State::Playing {
             return true;
         }
 
@@ -261,8 +412,6 @@ impl Board {
 
         self.ply += 1;
         self.data.white_turn = !self.data.white_turn;
-
-        println!("{} µs", now.elapsed().as_micros());
 
         false
     }
@@ -281,20 +430,21 @@ impl fmt::Display for Board {
 
         string.push_str(&color::Fg(color::Cyan).to_string());
 
-        for (i, piece) in self.data.board.iter().enumerate() {
+        for i in 0..64 {
+            let real_index = i % 8 + (7 - i / 8) * 8;
             if i % 8 == 0 {
                 string.push_str(&color::Fg(color::White).to_string());
-                string.push(char::from_digit((i / 8) as u32 + 1, 10).unwrap());
+                string.push(char::from_digit(8 - (i / 8) as u32, 10).unwrap());
                 string.push(' ');
                 string.push_str(&color::Fg(color::Cyan).to_string());
             }
 
-            string.push(piece.as_char());
+            string.push(self.data.board[real_index].as_unicode_char());
 
             if i % 8 == 7 {
                 string.push_str(&color::Fg(color::White).to_string());
                 string.push(' ');
-                string.push(char::from_digit((i / 8) as u32 + 1, 10).unwrap());
+                string.push(char::from_digit(8 - (i / 8) as u32, 10).unwrap());
                 string.push('\n');
                 string.push_str(&color::Fg(color::Cyan).to_string());
             } else if i % 8 != 7 {
@@ -327,10 +477,11 @@ impl fmt::Debug for Board {
 
         string.push_str(&color::Fg(color::LightWhite).to_string());
 
-        for (i, piece) in self.data.board.iter().enumerate() {
+        for i in 0..64 {
+            let real_index = i % 8 + (7 - i / 8) * 8;
             if i % 8 == 0 {
                 string.push_str(&color::Fg(color::White).to_string());
-                string.push(char::from_digit((i / 8) as u32 + 1, 10).unwrap());
+                string.push(char::from_digit(8 - (i / 8) as u32, 10).unwrap());
                 string.push(' ');
                 string.push_str(&color::Fg(color::LightWhite).to_string());
             }
@@ -339,25 +490,43 @@ impl fmt::Debug for Board {
                 .move_generator
                 .moves
                 .iter()
-                .any(|p| p.end as usize == i)
+                .any(|p| p.end as usize == real_index)
             {
                 string.push_str(&color::Fg(color::Cyan).to_string());
             }
 
-            string.push(piece.as_char());
+            string.push(self.data.board[real_index].as_unicode_char());
 
             string.push_str(&color::Fg(color::LightWhite).to_string());
 
             if i % 8 == 7 {
                 string.push_str(&color::Fg(color::White).to_string());
                 string.push(' ');
-                string.push(char::from_digit((i / 8) as u32 + 1, 10).unwrap());
+                string.push(char::from_digit(8 - (i / 8) as u32, 10).unwrap());
 
                 string.push('\t');
 
-                for safe in self.move_generator.attacking_rays[(i / 8 * 8)..(i / 8 * 8 + 8)].iter()
-                {
-                    string.push(if *safe { '▆' } else { '.' });
+                for j in 0..8 {
+                    string.push(
+                        if self.move_generator.fields_under_attack & (1 << ((real_index / 8) * 8 + j)) != 0 {
+                            '▆'
+                        } else {
+                            '·'
+                        },
+                    );
+                    string.push(' ');
+                }
+
+                string.push('\t');
+
+                for j in 0..8 {
+                    string.push(
+                        if self.move_generator.attacking_rays & (1 << ((real_index / 8) * 8 + j)) != 0 {
+                            '▆'
+                        } else {
+                            '·'
+                        },
+                    );
                     string.push(' ');
                 }
 

@@ -13,3 +13,9 @@
 ### Should be
 - Took 11 ms for depth 4
 - Took 259 ms for depth 5 
+
+### Update
+- Took 14 µs for depth 1 with 20 moves
+- Took 252 µs for depth 2 with 400 moves
+- Took 5973 µs for depth 3 with 8902 moves
+- Took 91762 µs for depth 4 with 140820 moves

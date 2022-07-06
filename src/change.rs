@@ -8,6 +8,7 @@ pub(crate) struct Change {
     pub(crate) two_square_advance: u8,
     pub(crate) fifty_move_counter: u8,
     pub(crate) promotion: bool,
+    pub(crate) en_passant: bool,
     pub(crate) not_able_to_castle: u8,
     pub(crate) castling: u8,
 }
@@ -21,6 +22,7 @@ impl Change {
         two_square_advance: u8,
         fifty_move_counter: u8,
         promotion: bool,
+        en_passant: bool,
         not_able_to_castle: u8,
         castling: u8,
     ) -> Self {
@@ -32,6 +34,7 @@ impl Change {
             two_square_advance,
             fifty_move_counter,
             promotion,
+            en_passant,
             not_able_to_castle,
             castling,
         }

@@ -48,30 +48,27 @@ impl PieceType {
 }
 
 #[repr(i8)]
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, Copy)]
 pub enum PieceColor {
     White = 1,
     Black = -1,
     None = 0,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Piece {
     piece: i8,
     pub(crate) uuid: u8,
 }
 
 impl Piece {
-    pub(crate) fn from_type(piece: i8, uuid: u8) -> Piece {
-        Piece { piece, uuid: uuid | 0x10 }
-    }
-
-    pub(crate) fn from_size_type(piece: i8, uuid: u8) -> Piece {
-        Piece { piece, uuid: uuid | 0x10 }
-    }
-
     pub fn empty() -> Piece {
         Piece { piece: 0, uuid: 0 }
+    }
+
+    pub fn set(&mut self, _type: PieceType, color: PieceColor, uuid: u8) {
+        self.piece = (_type as i8) * (color as i8);
+        self.uuid = uuid | (0x10 * ((color == PieceColor::Black) as u8));
     }
 
     #[inline(always)]
@@ -109,11 +106,6 @@ impl Piece {
         self.piece.abs() == 6
     }
 
-    pub fn set(&mut self, _type: PieceType, color: PieceColor, uuid: u8) {
-        self.piece = (_type as i8) * (color as i8);
-        self.uuid = uuid;
-    }
-
     pub(crate) fn promotion(&mut self, promotion: u8) {
         self.piece = self.piece.signum() * (promotion as i8);
         debug_assert!(self.piece != 0);
@@ -141,7 +133,7 @@ impl Piece {
 
     #[inline(always)]
     pub fn to_piecelist_index(&self) -> usize {
-        self.piece.abs() as usize + 3 * (self.piece.signum() + 1) as usize
+        self.piece.abs() as usize - 1 + 3 * (self.piece.signum() + 1) as usize
     }
 
     pub fn as_char(&self) -> char {
@@ -160,12 +152,31 @@ impl Piece {
         } else if self.is_black() {
             piece_char
         } else {
-            '.'
+            '·'
+        }
+    }
+
+    pub fn as_unicode_char(&self) -> char {
+        match self.piece {
+            -1 => '♟',
+            -2 => '♝',
+            -3 => '♞',
+            -4 => '♜',
+            -5 => '♛',
+            -6 => '♚',
+            1 => '♙',
+            2 => '♗',
+            3 => '♘',
+            4 => '♖',
+            5 => '♕',
+            6 => '♔',
+            _ => '·',
         }
     }
 
     pub fn set_empty(&mut self) {
         self.piece = 0;
+        self.uuid = 0;
     }
 }
 
