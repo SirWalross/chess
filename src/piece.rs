@@ -107,7 +107,7 @@ impl Piece {
     }
 
     pub(crate) fn promotion(&mut self, promotion: u8) {
-        self.piece = self.piece.signum() * (promotion as i8);
+        self.piece = self.piece.signum() * (promotion as i8 + 1);
         debug_assert!(self.piece != 0);
     }
 

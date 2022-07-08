@@ -6,10 +6,10 @@ use crate::position::Position;
 pub(crate) mod MoveFlags {
     pub(crate) const KINGSIDE_CASTLING: u8 = 1 << 0;
     pub(crate) const QUEENSIDE_CASTLING: u8 = 1 << 1;
-    pub(crate) const QUEEN_PROMOTION: u8 = 1 << 2;
-    pub(crate) const ROOK_PROMOTION: u8 = 2 << 2;
-    pub(crate) const KNIGHT_PROMOTION: u8 = 3 << 2;
-    pub(crate) const BISHOP_PROMOTION: u8 = 4 << 2;
+    pub(crate) const QUEEN_PROMOTION: u8 = 4 << 2;
+    pub(crate) const ROOK_PROMOTION: u8 = 3 << 2;
+    pub(crate) const KNIGHT_PROMOTION: u8 = 2 << 2;
+    pub(crate) const BISHOP_PROMOTION: u8 = 1 << 2;
     pub(crate) const TWO_SQUARE_ADVANCE: u8 = 1 << 5;
     pub(crate) const EN_PASSANT: u8 = 1 << 6;
 }
@@ -83,6 +83,6 @@ impl Move {
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}) to ({})", self.start, self.end)
+        write!(f, "{{{},{}}}", Position::from_index(self.start).to_string(), Position::from_index(self.end).to_string())
     }
 }

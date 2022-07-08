@@ -152,7 +152,16 @@ impl MoveGenerator {
                     for j in 0..n {
                         self.attacking_rays |= 1
                             << (index as i8
-                                + j * board.piece_moves.sliding_offsets[direction_index as usize] * self.color);
+                                + j * board.piece_moves.sliding_offsets[direction_index as usize]
+                                    * self.color);
+                    }
+                    if _move.in_bounds(index, self.color * (n + 1)) {
+                        // field directly behind king is also under attack
+                        self.fields_under_attack |= 1
+                            << (index as i8
+                                + (n + 1)
+                                    * board.piece_moves.sliding_offsets[direction_index as usize]
+                                    * self.color);
                     }
                     break;
                 } else if dest == self.enemy_king_index {
@@ -164,19 +173,14 @@ impl MoveGenerator {
                 } else if pinning_piece.is_empty() && enemy_piece && attacking_king && is_capture {
                     // pinning piece
                     pinning_piece = target;
-                } else if (!pinning_piece.is_empty() || !attacking_king)
-                    && enemy_piece
-                    && is_capture
-                {
-                    // second enemy piece in dir or not directly attacking the king
-                    // if directly attacking enemy piece no need to set fields_under_attack, because
-                    // the enemy king cant move there anyway
+                } else if !pinning_piece.is_empty() && is_capture {
+                    // second enemy piece in dir
                     break;
-                } else if is_capture && !enemy_piece {
+                } else if is_capture && pinning_piece.is_empty() {
                     // own piece
                     self.fields_under_attack |= 1 << dest;
                     break;
-                } else if !is_capture {
+                } else if !is_capture && pinning_piece.is_empty() {
                     // no piece
                     self.fields_under_attack |= 1 << dest;
                 }
@@ -199,7 +203,7 @@ impl MoveGenerator {
                 if !self.in_check && board.board[dest as usize].is_empty() {
                     // Castle kingside
                     if i == Direction::kingside(self.color)
-                        && board.not_able_to_castle & 0x01 << (2 * (!board.white_turn as u8)) == 0
+                        && board.not_able_to_castle & (0x02 << (2 * (!board.white_turn as u8))) == 0
                         && board.board[dest as usize + 1].is_empty()
                         && !self.fields_under_attack & (1 << (dest + 1)) != 0
                     {
@@ -211,7 +215,7 @@ impl MoveGenerator {
                     }
                     // Castle queenside
                     else if i == Direction::queenside(self.color)
-                        && board.not_able_to_castle & 0x02 << (2 * (!board.white_turn as u8)) == 0
+                        && board.not_able_to_castle & (0x01 << (2 * (!board.white_turn as u8))) == 0
                         && board.board[dest as usize - 1].is_empty()
                         && board.board[dest as usize - 2].is_empty()
                         && !self.fields_under_attack & (1 << (dest - 1)) != 0
@@ -310,15 +314,16 @@ impl MoveGenerator {
 
         for (_, index) in board.piece_list.from_type(self.color * 1) {
             let uuid = board.board[*index as usize].uuid & 0x0f;
+            let dest_one_forward = (*index as i8 + 16 * self.color) as u8;
             for i in 0..3 {
                 let _move = board.piece_moves.pawn_moves[i];
                 let dest = _move * self.color + *index;
-                let captured = &board.board[dest as usize];
-                let dest_one_forward = (dest as i8 + 8 * self.color) as u8;
-
+                
                 if !_move.in_bounds(*index, self.color) {
                     continue;
                 }
+
+                let captured = &board.board[dest as usize];
 
                 if self.pinned & (1 << uuid) != 0
                     && !self.moving_along_pinned_dir(
@@ -331,8 +336,9 @@ impl MoveGenerator {
                 }
 
                 let preventing_check = self.in_check && self.attacking_rays & (1 << dest) != 0;
-                let preventing_check_one_forward =
-                    self.in_check && self.attacking_rays & (1 << dest_one_forward) != 0;
+                let preventing_check_one_forward = self.in_check
+                    && dest_one_forward < 64
+                    && self.attacking_rays & (1 << dest_one_forward) != 0;
 
                 if i == 0 && captured.is_empty() && (!self.in_check || preventing_check) {
                     if *index / 8 == penultimate_file {
@@ -390,7 +396,7 @@ impl MoveGenerator {
                     }
                 } else if i != 0
                     && dest == board.two_square_advance
-                    && (!self.in_check || preventing_check)
+                    && dest != 0
                 {
                     let captured = (dest as i8 - 8 * self.color) as u8;
                     if !self.in_check_after_en_passant(board, *index, captured) {
@@ -406,32 +412,55 @@ impl MoveGenerator {
     fn moving_along_pinned_dir(&self, uuid: u8, direction_index: u8) -> bool {
         // makes sure that direction_index of for example left and right are the same
         debug_assert!(self.pinned & (1 << uuid) != 0);
-        (self.pinned_dir >> (30 - 2 * uuid)) as u8 & 0x03 == direction_index / 2
+        (self.pinned_dir >> (2 * uuid)) as u8 & 0x03 == direction_index / 2
     }
 
     fn in_check_after_en_passant(&self, board: &Data, start: u8, captured: u8) -> bool {
+        if self.in_check {
+            // check if to be captured pawn by en passant is the check making piece
+            let mut capturing = false;
+            for i in 1..=2 {
+                let _move = board.piece_moves.pawn_moves[i];
+                let dest = _move * self.color + self.king_index;
+
+                if _move.in_bounds(self.king_index, self.color) && dest == captured {
+                    // capturing the check making piece
+                    capturing = true;
+                    break;
+                }
+            }
+            if !capturing {
+                // not capturing the pawn
+                return true;
+            }
+        }
+
         if start / 8 != self.king_index / 8 {
             // not on the same file
             return false;
         }
-        let direction = if start / 8 > self.king_index / 8 {
+        let direction = if start % 8 > self.king_index % 8 {
             1
         } else {
             -1
         };
         let step_count = if direction > 0 {
-            8 - self.king_index % 8
+            7 - self.king_index % 8
         } else {
             self.king_index % 8
         };
-        for n in 1..step_count {
+        if step_count <= 2 {
+            // not enough space for enemy
+            return false;
+        }
+        for n in 1..=step_count {
             let dest = (self.king_index as i8 + n as i8 * direction) as u8;
             let piece = &board.board[dest as usize];
             if dest != start && dest != captured && !piece.is_empty() {
-                if piece.is_color(self.color) && !piece.is_rook() && !piece.is_queen() {
-                    return false;
-                } else {
+                if piece.is_color(-self.color) && (piece.is_rook() || piece.is_queen()) {
                     return true;
+                } else {
+                    return false;
                 }
             }
         }
@@ -441,8 +470,8 @@ impl MoveGenerator {
     #[inline(always)]
     fn in_enemy_king_direction(&self, board: &Data, index: u8, direction_index: u8) -> bool {
         Position::new(
-            self.enemy_king_index as i8 / 8 - index as i8 / 8,
-            self.enemy_king_index as i8 % 8 - index as i8 % 8,
+            (self.enemy_king_index as i8 / 8 - index as i8 / 8) * self.color,
+            (self.enemy_king_index as i8 % 8 - index as i8 % 8) * self.color,
         )
         .same_direction(board.piece_moves.sliding[direction_index as usize])
     }

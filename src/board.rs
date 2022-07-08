@@ -13,6 +13,15 @@ use array_init::array_init;
 use core::num;
 use std::fmt;
 
+#[allow(non_snake_case)]
+pub mod PerftPositions {
+    pub const POSITION2: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ";
+    pub const POSITION3: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -";
+    pub const POSITION4: &str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+    pub const POSITION5: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+    pub const POSITION6: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
+}
+
 pub(crate) struct Data {
     pub(crate) board: [Piece; 8 * 8],
     pub(crate) piece_moves: PieceMoves,
@@ -138,6 +147,8 @@ impl Board {
 
         let mut captured = self.data.board[captured_position as usize].clone();
 
+        debug_assert!(!captured.is_king());
+
         if _move.en_passant() {
             // en passant
             debug_assert!(self.data.board[_move.end as usize].is_empty());
@@ -216,10 +227,9 @@ impl Board {
         // self.data.white_turn = !self.data.white_turn;
         // self.move_generator.generate_moves(&self.data);
         // self.data.white_turn = !self.data.white_turn;
-        // if self.move_generator.in_check {
-        //     // println!("In check!");
-        //     self.changes.iter().for_each(|c| print!("{}: {}, ", c.start, c.end));
-        //     println!("");
+        // self.check_game_state();
+        // if self.state != State::Playing {
+        //     println!("{}", self.state);
         // }
     }
 
@@ -247,7 +257,7 @@ impl Board {
 
         if change.promotion {
             self.data.piece_list.remove(&piece);
-            piece.promotion(1);
+            piece.promotion(0);
             self.data.piece_list.add(&piece, change.start);
         }
 
@@ -299,41 +309,47 @@ impl Board {
         }
 
         self.move_generator.generate_moves(&self.data);
+
+        // self.move_generator.moves.iter().for_each(|m| print!("{},", m));
+        // println!("");
+
+        if depth == 1 {
+            let _num_positions = self.move_generator.moves.len();
+            return (self, _num_positions, 0);
+        }
+
         self.check_game_state();
 
         if self.state != State::Playing {
             return (self, 0, 0);
         }
-
-        // let board = self.data.board.clone();
-        // let white_turn = self.data.white_turn;
-        // let not_able_to_castle = self.data.not_able_to_castle;
-        // let two_square_advance = self.data.two_square_advance;
-        // let piece_list = self.data.piece_list.clone();
-        // if depth == 1 {
-        //     let len = self.move_generator.moves.len();
-        //     return (self, len, 0);
-        // }
         
-        // if start == 3 && depth == 1 {
-        //     println!("{:?}", self.move_generator.moves);
-        //     print!("");
-        // }
         let mut num_positions = 0;
 
-        for (i, _move) in self.move_generator.moves.clone().iter().enumerate() {
-            // println!("Move: {} at depth: {}", _move, depth);
-            self.make_move(&_move);
+        let board = self.data.board.clone();
 
-            // println!("{:?}", _move);
-            // println!("{:?}", self.data.piece_list);
+        for (i, _move) in self.move_generator.moves.clone().iter().enumerate() {
+
+            if i == 10 && depth == 4{
+                print!("");
+            }
+
+            self.make_move(&_move);
 
 
             self.ply += 1;
             self.data.white_turn = !self.data.white_turn;
 
             let _num_positions;
+            
             (self, _num_positions, _) = self.benchmark(depth - 1, start);
+
+            // if depth == start {
+            //     println!("{}, {}, {}", _move, _num_positions, depth);
+            // }
+            // println!("{}, {}", _move, _num_positions);
+
+
             num_positions += _num_positions;
 
             self.state = State::Playing;
@@ -343,10 +359,7 @@ impl Board {
             self.ply -= 1;
             self.data.white_turn = !self.data.white_turn;
 
-            // debug_assert!(self.data.board == board);
-            // debug_assert!(self.data.white_turn == white_turn);
-            // debug_assert!(self.data.not_able_to_castle == not_able_to_castle);
-            // debug_assert!(self.data.two_square_advance == two_square_advance);
+            assert!(board == self.data.board);
         }
 
         (self, num_positions, now.elapsed().as_micros())
@@ -414,6 +427,59 @@ impl Board {
         self.data.white_turn = !self.data.white_turn;
 
         false
+    }
+
+    pub fn play_move(&mut self, _move: &str) -> Option<bool> {
+        if self.state != State::Playing {
+            return Some(true);
+        }
+
+        let now = std::time::Instant::now();
+
+        self.move_generator.generate_moves(&self.data);
+
+        self.check_game_state();
+
+        if self.state != State::Playing {
+            return Some(true);
+        }
+
+        let _move: Vec<char> = _move.chars().collect();
+
+        let start = Position::new(
+            _move[1].to_digit(10).unwrap() as i8 - 1,
+            (_move[0].to_ascii_lowercase() as u32 - 'a' as u32) as i8,
+        );
+
+        let end = Position::new(
+            _move[3].to_digit(10).unwrap() as i8 - 1,
+            (_move[2].to_ascii_lowercase() as u32 - 'a' as u32) as i8,
+        );
+
+        let promotion: u8 = if _move.len() == 5 {
+            ['q', 'r', 'b', 'n'].iter().position(|c| *c == _move[4].to_ascii_lowercase()).unwrap() as u8 + 1
+        } else {
+            0
+        };
+
+        let _move = Move::from_positions(start, end, 0, promotion, false, false);
+        let move_index = self.move_generator.moves.iter().position(|m| {
+            m.start == start.index() as u8
+                && m.end == end.index() as u8
+                && m.promotion() == _move.promotion()
+        });
+        if move_index.is_none() {
+            return None;
+        }
+
+        let _move = self.move_generator.moves[move_index.unwrap()].clone();
+
+        self.make_move(&_move);
+
+        self.ply += 1;
+        self.data.white_turn = !self.data.white_turn;
+
+        Some(false)
     }
 }
 

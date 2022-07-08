@@ -77,7 +77,14 @@ impl Position {
 
     #[inline(always)]
     pub(crate) fn same_direction(&self, direction: Position) -> bool {
-        self.file.signum() == direction.file.signum() && self.rank.signum() == direction.file.signum()
+        self.file.signum() == direction.file.signum() && self.rank.signum() == direction.rank.signum()
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut string = String::new();
+        string.push((self.rank as u8 + 'a' as u8) as char);
+        string.push_str(&(self.file + 1).to_string());
+        string
     }
 }
 

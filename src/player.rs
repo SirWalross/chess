@@ -63,7 +63,7 @@ impl PlayerType {
                     continue;
                 }
 
-                let mut _move = Move::from_positions(start, end, 0, promotion, false, false);
+                let _move = Move::from_positions(start, end, 0, promotion, false, false);
                 let move_index = board.move_generator.moves.iter().position(|m| {
                     m.start == start.index() as u8
                         && m.end == end.index() as u8
@@ -74,7 +74,7 @@ impl PlayerType {
                     continue;
                 }
 
-                _move = board.move_generator.moves[move_index.unwrap()].clone();
+                let _move = board.move_generator.moves[move_index.unwrap()].clone();
                 return _move;
             },
             Self::Bot => {

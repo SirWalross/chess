@@ -18,33 +18,63 @@ pub use player::PlayerType;
 
 #[cfg(test)]
 mod tests {
+    use crate::board::PerftPositions;
+
     use super::*;
 
-    #[test]
-    fn position1() {
-        let results = [20, 400, 8902, 197281, 4865609, 119060324];
-        let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
-        for i in 1..=6 {
+    fn benchmark(mut board: Board, results: &[usize], depth: u8) {
+        for i in 1..=depth {
             let (_board, num_positions, duration) = board.benchmark(i, i);
             board = _board;
-            board.reset();
 
             assert_eq!(num_positions, results[i as usize - 1]);
         }
     }
 
-    // #[test]
-    // fn position2() {
-    //     let results = [48, 2039, 97862, 4085603, 193690690];
-    //     let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
-    //     board.load_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ");
-    //     for i in 1..=5 {
-    //         let (_board, num_positions, duration) = board.benchmark(i);
-    //         board = _board;
-    //         board.reset();
-    //         board.load_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ");
+    #[test]
+    fn position1() {
+        let results = [20, 400, 8902, 197281, 4865609, 119060324, 3195901860];
+        let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
+        benchmark(board, &results, 7);
+    }
 
-    //         assert_eq!(num_positions, results[i as usize - 1]);
-    //     }
-    // }
+    #[test]
+    fn position2() {
+        let results = [48, 2039, 97862, 4085603, 193690690, 8031647685];
+        let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
+        board.load_fen(PerftPositions::POSITION2);
+        benchmark(board, &results, 6);
+    }
+
+    #[test]
+    fn position3() {
+        let results = [14, 191, 2812, 43238, 674624, 11030083];
+        let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
+        board.load_fen(PerftPositions::POSITION3);
+        benchmark(board, &results, 6);
+    }
+
+    #[test]
+    fn position4() {
+        let results = [6, 264, 9467, 422333, 15833292, 706045033];
+        let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
+        board.load_fen(PerftPositions::POSITION4);
+        benchmark(board, &results, 6);
+    }
+
+    #[test]
+    fn position5() {
+        let results = [44, 1486, 62379, 2103487, 89941194];
+        let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
+        board.load_fen(PerftPositions::POSITION5);
+        benchmark(board, &results, 5);
+    }
+
+    #[test]
+    fn position6() {
+        let results = [46, 2079, 89890, 3894594, 164075551, 6923051137];
+        let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
+        board.load_fen(PerftPositions::POSITION6);
+        benchmark(board, &results, 6);
+    }
 }
