@@ -22,7 +22,7 @@ mod tests {
 
     use super::*;
 
-    fn benchmark(mut board: Board, results: &[usize], depth: u8) {
+    fn run_test(mut board: Board, results: &[usize], depth: u8) {
         for i in 1..=depth {
             let (_board, num_positions, duration) = board.benchmark(i, i);
             board = _board;
@@ -35,7 +35,7 @@ mod tests {
     fn position1() {
         let results = [20, 400, 8902, 197281, 4865609, 119060324, 3195901860];
         let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
-        benchmark(board, &results, 7);
+        run_test(board, &results, 7);
     }
 
     #[test]
@@ -43,7 +43,7 @@ mod tests {
         let results = [48, 2039, 97862, 4085603, 193690690, 8031647685];
         let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
         board.load_fen(PerftPositions::POSITION2);
-        benchmark(board, &results, 6);
+        run_test(board, &results, 6);
     }
 
     #[test]
@@ -51,7 +51,7 @@ mod tests {
         let results = [14, 191, 2812, 43238, 674624, 11030083];
         let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
         board.load_fen(PerftPositions::POSITION3);
-        benchmark(board, &results, 6);
+        run_test(board, &results, 6);
     }
 
     #[test]
@@ -59,7 +59,7 @@ mod tests {
         let results = [6, 264, 9467, 422333, 15833292, 706045033];
         let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
         board.load_fen(PerftPositions::POSITION4);
-        benchmark(board, &results, 6);
+        run_test(board, &results, 6);
     }
 
     #[test]
@@ -67,7 +67,7 @@ mod tests {
         let results = [44, 1486, 62379, 2103487, 89941194];
         let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
         board.load_fen(PerftPositions::POSITION5);
-        benchmark(board, &results, 5);
+        run_test(board, &results, 5);
     }
 
     #[test]
@@ -75,6 +75,6 @@ mod tests {
         let results = [46, 2079, 89890, 3894594, 164075551, 6923051137];
         let mut board = Board::new(PlayerType::HumanPlayer, PlayerType::HumanPlayer);
         board.load_fen(PerftPositions::POSITION6);
-        benchmark(board, &results, 6);
+        run_test(board, &results, 6);
     }
 }

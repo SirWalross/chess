@@ -344,9 +344,9 @@ impl Board {
             
             (self, _num_positions, _) = self.benchmark(depth - 1, start);
 
-            // if depth == start {
-            //     println!("{}, {}, {}", _move, _num_positions, depth);
-            // }
+            if depth == start {
+                println!("{}, {}, {}", _move, _num_positions, depth);
+            }
             // println!("{}, {}", _move, _num_positions);
 
 
