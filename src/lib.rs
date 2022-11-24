@@ -10,6 +10,7 @@ pub mod piece_moves;
 pub mod player;
 pub mod position;
 pub mod state;
+mod bot;
 
 pub use _move::Move;
 pub use board::Board;

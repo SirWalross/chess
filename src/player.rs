@@ -1,14 +1,17 @@
-use crate::{Board, Move, position::Position};
-use rand::seq::SliceRandom;
 use std::io::Write;
 
+use crate::{Board, Move, position::Position};
+use rand::seq::SliceRandom;
+use crate::bot;
+
+#[derive(Debug, Copy, Clone)]
 pub enum PlayerType {
     HumanPlayer,
     Bot,
 }
 
 impl PlayerType {
-    pub fn _move(&self, board: &Board) -> Move {
+    pub fn _move(&self, board: &mut Board) -> Move {
         match self {
             Self::HumanPlayer => loop {
                 print!("> ");
@@ -78,14 +81,7 @@ impl PlayerType {
                 return _move;
             },
             Self::Bot => {
-                let _move = board
-                    .move_generator
-                    .moves
-                    .choose(&mut rand::thread_rng())
-                    .unwrap()
-                    .clone();
-                println!("Player {:?} made the move {}", board.data.white_turn, _move);
-                _move
+                bot::make_move(board)
             }
         }
     }

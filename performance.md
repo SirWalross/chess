@@ -19,3 +19,11 @@
 - Took 252 µs for depth 2 with 400 moves
 - Took 5973 µs for depth 3 with 8902 moves
 - Took 91762 µs for depth 4 with 140820 moves
+
+### With new computer
+- Took 0 µs for depth 1 with 20 moves
+- Took 8 µs for depth 2 with 400 moves
+- Took 137 µs for depth 3 with 8902 moves
+- Took 3266 µs for depth 4 with 197281 moves
+- Took 72094 µs for depth 5 with 4865609 moves
+- Took 1755985 µs for depth 6 with 119060324 moves

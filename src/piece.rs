@@ -45,6 +45,30 @@ impl PieceType {
             _ => PieceType::None,
         }
     }
+
+    pub fn from_piece(piece: i8) -> Self {
+        match piece.abs() {
+            a if a == PieceType::Pawn as i8 => PieceType::Pawn,
+            a if a == PieceType::Bishop as i8  => PieceType::Bishop,
+            a if a == PieceType::Knight as i8  => PieceType::Knight,
+            a if a == PieceType::Rook as i8  => PieceType::Rook,
+            a if a == PieceType::Queen as i8  => PieceType::Queen,
+            a if a == PieceType::King as i8  => PieceType::King,
+            _ => PieceType::None,
+        }
+    }
+
+    pub fn value(&self) -> i32 {
+        match self {
+            PieceType::Pawn => 1,
+            PieceType::Bishop => 3,
+            PieceType::Knight => 3,
+            PieceType::Rook => 5,
+            PieceType::Queen => 7,
+            PieceType::King => 0,
+            PieceType::None => 0,
+        }
+    }
 }
 
 #[repr(i8)]
@@ -57,7 +81,7 @@ pub enum PieceColor {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Piece {
-    piece: i8,
+    pub(crate) piece: i8,
     pub(crate) uuid: u8,
 }
 
