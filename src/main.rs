@@ -1,10 +1,21 @@
 use chess::{board::PerftPositions, Board, PlayerType};
+use iced::alignment::{Horizontal, Vertical};
 use iced::executor;
+use iced::theme::{self, Button, Theme};
+use iced::widget::button::{Appearance, StyleSheet};
 use iced::widget::{button, checkbox, container, text, Column, Row};
-use iced::{Alignment, Command, Element, Length, Sandbox, Settings, Subscription};
+use iced::window;
+use iced::{Alignment, Color, Command, Element, Length, Sandbox, Settings, Subscription};
 
 fn main() -> iced::Result {
-    Chess::run(Settings::default())
+    Chess::run(Settings {
+        window: window::Settings {
+            size: (600, 570),
+            resizable: false,
+            ..window::Settings::default()
+        },
+        ..Settings::default()
+    })
 
     // loop {
     //     println!("{:?}", board);
@@ -33,6 +44,18 @@ pub enum Message {
     DropMessage,
 }
 
+// struct DarkButtonTheme {
+
+// }
+
+// impl StyleSheet for DarkButtonTheme {
+//     type Style = Button;
+
+//     fn active(&self, style: &Self::Style) -> Appearance {
+
+//     }
+// }
+
 impl Sandbox for Chess {
     type Message = Message;
 
@@ -47,29 +70,53 @@ impl Sandbox for Chess {
     }
 
     fn view(&self) -> Element<Message> {
-        let test: Vec<i8> = (0..8).collect();
+        let test: Vec<u8> = (0..8).collect();
         let board = Column::with_children(
             test.iter()
-                .map(|file: &i8| {
+                .map(|file: &u8| {
                     Row::with_children(
                         test.iter()
-                            .map(|rank: &i8| {
-                                button("w")
+                            .map(|rank: &u8| {
+                                container(
+                                    button(
+                                        text(
+                                            self.board
+                                                .get_piece_at_position(*file, *rank)
+                                                .as_char(),
+                                        )
+                                        .horizontal_alignment(Horizontal::Center)
+                                        .vertical_alignment(Vertical::Center)
+                                        .width(Length::Fill)
+                                        .height(Length::Fill)
+                                        .size(32),
+                                    )
                                     .on_press(Message::HighlightMessage)
                                     .width(Length::Fill)
                                     .height(Length::Fill)
+                                    .style(
+                                        if (file + rank) % 2 == 0 {
+                                            Button::Primary
+                                        } else {
+                                            Button::Secondary
+                                        },
+                                    ),
+                                )
+                                //.padding(10)
+                                .width(Length::Fill)
+                                .height(Length::Fill)
                             })
                             .map(Element::from)
                             .collect(),
                     )
-                    .width(Length::Fill)
                     .height(Length::Fill)
+                    .align_items(Alignment::Center)
                 })
                 .map(Element::from)
                 .collect(),
         )
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(Length::Fill)
+        .align_items(Alignment::Center);
         let content = Column::new().height(Length::Fill).push(board);
         container(content)
             .width(Length::Fill)
@@ -80,4 +127,8 @@ impl Sandbox for Chess {
     }
 
     fn update(&mut self, message: Message) {}
+
+    fn theme(&self) -> Theme {
+        Theme::Dark
+    }
 }

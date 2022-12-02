@@ -65,6 +65,10 @@ impl Board {
         board
     }
 
+    pub fn get_piece_at_position(&self, file: u8, rank: u8) -> Piece {
+        self.data.board[(file * 8 + rank) as usize].clone()
+    }
+
     pub fn load_fen(&mut self, fen: &str) {
         self.state = State::Playing;
         self.data.not_able_to_castle = 0x0f;

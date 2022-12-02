@@ -176,7 +176,7 @@ impl Piece {
         } else if self.is_black() {
             piece_char
         } else {
-            '·'
+            ' '
         }
     }
 
@@ -194,7 +194,7 @@ impl Piece {
             4 => '♖',
             5 => '♕',
             6 => '♔',
-            _ => '·',
+            _ => ' ',
         }
     }
 
