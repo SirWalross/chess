@@ -65,8 +65,33 @@ impl Board {
         board
     }
 
-    pub fn get_piece_at_position(&self, file: u8, rank: u8) -> Piece {
-        self.data.board[(file * 8 + rank) as usize].clone()
+    pub fn get_piece_at_position(&self, pos: Position) -> Piece {
+        self.data.board[pos.to_index() as usize].clone()
+    }
+
+    pub fn piece_able_to_move(&self, pos: Position) -> bool {
+        self.move_generator.moves.iter().any(|m| {
+            m.start == pos.to_index()
+                && self
+                    .get_piece_at_position(pos)
+                    .is_white()
+                    == self.data.white_turn
+        })
+    }
+
+    pub fn piece_able_to_move_to_pos(
+        &self,
+        old_pos: Position,
+        new_pos: Position
+    ) -> bool {
+        self.move_generator.moves.iter().any(|m| {
+            (m.start == old_pos.to_index())
+                && (m.end == new_pos.to_index())
+                && self
+                    .get_piece_at_position(old_pos)
+                    .is_white()
+                    == self.data.white_turn
+        }) || old_pos == new_pos
     }
 
     pub fn load_fen(&mut self, fen: &str) {
@@ -362,7 +387,6 @@ impl Board {
         // let board = self.data.board.clone();
 
         for (i, _move) in self.move_generator.moves.clone().iter().enumerate() {
-
             self.make_move(&_move);
 
             let _num_positions;
@@ -418,7 +442,7 @@ impl Board {
         }
     }
 
-    pub fn play_round(&mut self) -> bool {
+    pub fn play_ply(&mut self) -> bool {
         if self.state != State::Playing {
             return true;
         }
@@ -438,6 +462,33 @@ impl Board {
         self.make_move(&_move);
 
         false
+    }
+
+    pub fn play_human_ply(&mut self, start: Position, end: Position) -> bool {
+        if self.state != State::Playing {
+            return true;
+        }
+
+        self.move_generator.generate_moves(&self.data);
+
+        self.check_game_state();
+
+        if self.state != State::Playing {
+            return true;
+        }
+
+        let player = self.players[self.ply % 2];
+        assert!(player == PlayerType::HumanPlayer);
+
+        let _move = self.move_generator.get_move(start, end, 0);
+
+        self.make_move(&_move.unwrap());
+
+        false
+    }
+
+    pub fn human_turn(&self) -> bool {
+        self.players[self.ply % 2] == PlayerType::HumanPlayer
     }
 }
 

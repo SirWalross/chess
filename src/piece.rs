@@ -198,6 +198,18 @@ impl Piece {
         }
     }
 
+    pub fn as_unicode_char_abs(&self) -> char {
+        match -self.piece.abs() {
+            -1 => '♟',
+            -2 => '♝',
+            -3 => '♞',
+            -4 => '♜',
+            -5 => '♛',
+            -6 => '♚',
+            _ => ' ',
+        }
+    }
+
     pub fn set_empty(&mut self) {
         self.piece = 0;
         self.uuid = 0;

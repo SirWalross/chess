@@ -1,7 +1,7 @@
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position {
-    pub(crate) file: i8,
-    pub(crate) rank: i8,
+    pub file: i8,
+    pub rank: i8,
 }
 
 impl Position {
@@ -17,13 +17,18 @@ impl Position {
     }
 
     #[inline(always)]
-    pub(crate) fn in_bounds(&self, index: u8, color: i8) -> bool {
+    pub(crate) fn move_in_bounds(&self, index: u8, color: i8) -> bool {
         let file = (index / 8) as i8;
         let rank = (index % 8) as i8;
         file + self.file * color <= 7
             && file + self.file * color >= 0
             && rank + self.rank * color <= 7
             && rank + self.rank * color >= 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn in_bounds(&self) -> bool {
+        self.file <= 7 && self.file >= 0 && self.rank <= 7 && self.rank >= 0
     }
 
     pub(crate) fn rotate_180(mut self) -> Self {
@@ -77,7 +82,8 @@ impl Position {
 
     #[inline(always)]
     pub(crate) fn same_direction(&self, direction: Position) -> bool {
-        self.file.signum() == direction.file.signum() && self.rank.signum() == direction.rank.signum()
+        self.file.signum() == direction.file.signum()
+            && self.rank.signum() == direction.rank.signum()
     }
 
     pub fn to_string(&self) -> String {
@@ -85,6 +91,11 @@ impl Position {
         string.push((self.rank as u8 + 'a' as u8) as char);
         string.push_str(&(self.file + 1).to_string());
         string
+    }
+
+    pub fn to_index(&self) -> u8 {
+        debug_assert!(self.in_bounds());
+        (self.file * 8 + self.rank) as u8
     }
 }
 

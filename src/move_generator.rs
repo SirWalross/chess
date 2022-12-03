@@ -68,13 +68,21 @@ impl MoveGenerator {
         self.generate_pawn_moves(board);
     }
 
+    pub(crate) fn get_move(&self, start: Position, end: Position, promotion: u8) -> Option<Move> {
+        self.moves.iter().find(|m| {
+            m.start == start.index() as u8
+                && m.end == end.index() as u8
+                && m.promotion() == promotion
+        }).cloned()
+    }
+
     fn calculate_attack_data(&mut self, board: &Data) {
         // king
         for i in 0..8 {
             let _move = board.piece_moves.sliding[i as usize];
             let dest = _move * self.color + self.king_index;
 
-            if _move.in_bounds(self.king_index, self.color) {
+            if _move.move_in_bounds(self.king_index, self.color) {
                 self.fields_under_attack |= 1 << dest;
             }
         }
@@ -84,7 +92,7 @@ impl MoveGenerator {
                 let _move = board.piece_moves.knight_moves[i];
                 let dest = _move * self.color + *index;
 
-                if _move.in_bounds(*index, self.color) {
+                if _move.move_in_bounds(*index, self.color) {
                     self.fields_under_attack |= 1 << dest;
 
                     if dest == self.enemy_king_index {
@@ -101,7 +109,7 @@ impl MoveGenerator {
                 let _move = board.piece_moves.pawn_moves[i];
                 let dest = _move * self.color + *index;
 
-                if _move.in_bounds(*index, self.color) {
+                if _move.move_in_bounds(*index, self.color) {
                     self.fields_under_attack |= 1 << dest;
 
                     if dest == self.enemy_king_index {
@@ -134,7 +142,7 @@ impl MoveGenerator {
             let mut pinning_piece = &Piece::empty();
 
             for n in 1..8 {
-                if !_move.in_bounds(index, self.color * n) {
+                if !_move.move_in_bounds(index, self.color * n) {
                     break;
                 }
 
@@ -155,7 +163,7 @@ impl MoveGenerator {
                                 + j * board.piece_moves.sliding_offsets[direction_index as usize]
                                     * self.color);
                     }
-                    if _move.in_bounds(index, self.color * (n + 1)) {
+                    if _move.move_in_bounds(index, self.color * (n + 1)) {
                         // field directly behind king is also under attack
                         self.fields_under_attack |= 1
                             << (index as i8
@@ -194,7 +202,7 @@ impl MoveGenerator {
             let _move = board.piece_moves.sliding[i];
             let dest = _move * self.color + index;
 
-            if _move.in_bounds(index, self.color)
+            if _move.move_in_bounds(index, self.color)
                 && !board.board[dest as usize].is_color(self.color)
                 && !self.fields_under_attack & (1 << dest) != 0
             {
@@ -243,7 +251,7 @@ impl MoveGenerator {
                 let _move = board.piece_moves.knight_moves[i];
                 let dest = _move * self.color + *index;
 
-                if _move.in_bounds(*index, self.color)
+                if _move.move_in_bounds(*index, self.color)
                     && !board.board[dest as usize].is_color(self.color)
                     && (self.attacking_rays & (1 << dest) != 0 || !self.in_check)
                 {
@@ -286,7 +294,7 @@ impl MoveGenerator {
             let _move = board.piece_moves.sliding[direction_index as usize];
 
             for n in 1..8 {
-                if !_move.in_bounds(index, self.color * n) {
+                if !_move.move_in_bounds(index, self.color * n) {
                     break;
                 }
 
@@ -319,7 +327,7 @@ impl MoveGenerator {
                 let _move = board.piece_moves.pawn_moves[i];
                 let dest = _move * self.color + *index;
                 
-                if !_move.in_bounds(*index, self.color) {
+                if !_move.move_in_bounds(*index, self.color) {
                     continue;
                 }
 
@@ -423,7 +431,7 @@ impl MoveGenerator {
                 let _move = board.piece_moves.pawn_moves[i];
                 let dest = _move * self.color + self.king_index;
 
-                if _move.in_bounds(self.king_index, self.color) && dest == captured {
+                if _move.move_in_bounds(self.king_index, self.color) && dest == captured {
                     // capturing the check making piece
                     capturing = true;
                     break;

@@ -1,10 +1,10 @@
 use std::io::Write;
 
-use crate::{Board, Move, position::Position};
-use rand::seq::SliceRandom;
 use crate::bot;
+use crate::{position::Position, Board, Move};
+use rand::seq::SliceRandom;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PlayerType {
     HumanPlayer,
     Bot,
@@ -35,7 +35,11 @@ impl PlayerType {
                     continue;
                 }
 
-                if chars.len() == 6 && !['q', 'r', 'b', 'n'].iter().any(|c| *c == chars[4].to_ascii_lowercase()) {
+                if chars.len() == 6
+                    && !['q', 'r', 'b', 'n']
+                        .iter()
+                        .any(|c| *c == chars[4].to_ascii_lowercase())
+                {
                     println!("Invalid <promition piece>, only 'q', 'r', 'b' and 'n' are allowed.");
                     continue;
                 }
@@ -51,38 +55,35 @@ impl PlayerType {
                 );
 
                 let promotion: u8 = if chars.len() == 6 {
-                    ['q', 'r', 'b', 'n'].iter().position(|c| *c == chars[4].to_ascii_lowercase()).unwrap() as u8 + 1
+                    ['q', 'r', 'b', 'n']
+                        .iter()
+                        .position(|c| *c == chars[4].to_ascii_lowercase())
+                        .unwrap() as u8
+                        + 1
                 } else {
                     0
                 };
 
-                if !start.in_bounds(0, 0) {
+                if !start.move_in_bounds(0, 0) {
                     println!("Invalid start position");
                     continue;
                 }
 
-                if !end.in_bounds(0, 0) {
+                if !end.move_in_bounds(0, 0) {
                     println!("Invalid end position");
                     continue;
                 }
 
                 let _move = Move::from_positions(start, end, 0, promotion, false, false);
-                let move_index = board.move_generator.moves.iter().position(|m| {
-                    m.start == start.index() as u8
-                        && m.end == end.index() as u8
-                        && m.promotion() == _move.promotion()
-                });
-                if move_index.is_none() {
+                let _move = board.move_generator.get_move(start, end, promotion);
+                if _move.is_none() {
                     println!("Invalid move");
                     continue;
                 }
 
-                let _move = board.move_generator.moves[move_index.unwrap()].clone();
-                return _move;
+                return _move.unwrap();
             },
-            Self::Bot => {
-                bot::make_move(board)
-            }
+            Self::Bot => bot::make_move(board),
         }
     }
 }
